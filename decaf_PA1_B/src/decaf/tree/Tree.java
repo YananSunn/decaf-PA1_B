@@ -302,6 +302,8 @@ public abstract class Tree {
     
     
     public static final int PRINT = READLINEEXPR + 1;
+    public static final int FORLEFT = PRINT + 1;
+    public static final int FORRIGHT = FORLEFT + 1;
 
     /**
      * Tags for Literal and TypeLiteral

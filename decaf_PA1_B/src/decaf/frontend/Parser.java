@@ -14,7 +14,7 @@ public class Parser extends Table {
      * Lexer.
      */
     private Lexer lexer;
-    int a = 2;
+    int a = 1;
 
     /**
      * Set lexer.

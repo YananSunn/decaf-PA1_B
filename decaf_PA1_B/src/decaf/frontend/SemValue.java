@@ -65,6 +65,8 @@ public class SemValue {
     public Expr expr;
 
     public Expr expr1;
+    
+    public Expr expr2;
 
     public Vector<Expr> evec;
 

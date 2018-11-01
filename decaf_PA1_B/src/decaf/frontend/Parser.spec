@@ -18,7 +18,7 @@ LITERAL
 IDENTIFIER   AND      OR    STATIC  INSTANCEOF
 LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
 
-SCOPY SEALED GUARDED NEWSAMEARRAY JOINTARRAY DEFAULT IN FOREACH VAR
+SCOPY SEALED GUARDED NEWSAMEARRAY JOINTARRAY DEFAULT IN FOREACH VAR FORLEFT FORRIGHT
 
 '+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'  ':'
 ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
@@ -655,7 +655,17 @@ Expr8           :   Expr9 ExprT8
                         if ($2.vec != null) {
                             for (SemValue v : $2.vec) {
                                 if (v.expr != null) {
-                                    $$.expr = new Tree.Indexed($$.expr, v.expr, $$.loc);
+                                    if(v.expr1 == null){
+                                    	if(v.expr2 == null){
+                                    		$$.expr = new Tree.Indexed($$.expr, v.expr, $$.loc);
+                                    	}
+                                    	else{
+                                    		$$.expr = new Tree.DefaultArray($$.expr, v.expr, v.expr2, $$.loc);
+                                    	}	
+                                    }
+                                    else{
+                                    	$$.expr = new Tree.AccessArray($$.expr, v.expr, v.expr1, $$.loc);
+                                    }
                                 } else if (v.elist != null) {
                                     $$.expr = new Tree.CallExpr($$.expr, v.ident, v.elist, v.loc);
                                     $$.loc = v.loc;
@@ -668,14 +678,16 @@ Expr8           :   Expr9 ExprT8
                     }
                 ;
 
-ExprT8          :   '[' Expr ']' ExprT8
+ExprT8          :   '[' Expr Expr81
                     {
                         SemValue sem = new SemValue();
                         sem.expr = $2.expr;
+                        sem.expr1 = $3.expr1;
+                        sem.expr2 = $3.expr2;
                         $$.vec = new Vector<SemValue>();
                         $$.vec.add(sem);
-                        if ($4.vec != null) {
-                            $$.vec.addAll($4.vec);
+                        if ($3.vec != null) {
+                            $$.vec.addAll($3.vec);
                         }
                     }
                 |   '.' IDENTIFIER AfterIdentExpr ExprT8
@@ -692,7 +704,33 @@ ExprT8          :   '[' Expr ']' ExprT8
                     }
                 |   /* empty */
                 ;
-
+Expr81			:	']' Expr82
+					{
+						if($2.vec != null){
+							$$.vec.addAll($2.vec);
+						}
+						$$.expr2 = $2.expr2;
+					}
+				|	':' Expr ']' ExprT8
+					{
+						$$.expr1 = $2.expr;
+						if($4.vec != null){
+							$$.vec.addAll($4.vec);
+						}
+					}
+				;
+Expr82			:	ExprT8
+					{
+						if($1.vec != null){
+							$$.vec.addAll($1.vec);
+						}
+					}
+				|	DEFAULT Expr8
+					{
+						$$.expr2 = $2.expr;
+					}
+				;
+				
 AfterIdentExpr  :   '(' Actuals ')'
                     {
                         $$.elist = $2.elist;
@@ -740,7 +778,32 @@ Expr9           :   Constant
                             $$.expr = new Tree.Ident(null, $1.ident, $1.loc);
                         }
                     }
-                ;  
+                |	FORLEFT Expr FOR IDENTIFIER IN Expr ForExpr
+                	{
+                		$$.expr = new Tree.CompArray($2.expr, $4.ident, $6.expr, $7.expr, $1.loc);
+                	}
+                ;  	
+ForExpr			:	IF Expr FORRIGHT
+					{
+						$$.expr = $2.expr;
+					}
+				|	FORRIGHT
+				;
+IfStmt          :   IF GuardedStmt
+                    {
+                       $$.stmt = $2.stmt;
+                       $$.expr = $2.expr;
+                    }
+                ;
+GuardedStmt     :   '{' IfList '}'
+                    {
+                        $$.stmt = new Tree.Guarded($2.slist, $1.loc);
+                    }
+                |	'(' Expr ')' Stmt ElseClause
+                	{
+                		 $$.stmt = new Tree.If($2.expr, $4.stmt, $5.stmt, $1.loc);
+                	}
+                ;
 AfterNewExpr    :   IDENTIFIER '(' ')'
                     {
                         $$.ident = $1.ident;
@@ -852,8 +915,6 @@ SubExprList     :   ',' Expr SubExprList
                     }
                 ;
 
-				
-
 
 
 
@@ -876,20 +937,7 @@ BreakStmt       :   BREAK
                     }
                 ;
 
-IfStmt          :   IF GuardedStmt
-                    {
-                       $$.stmt = $2.stmt;
-                    }
-                ;
-GuardedStmt     :   '{' IfList '}'
-                    {
-                        $$.stmt = new Tree.Guarded($2.slist, $1.loc);
-                    }
-                |	'(' Expr ')' Stmt ElseClause
-                	{
-                		 $$.stmt = new Tree.If($2.expr, $4.stmt, $5.stmt, $1.loc);
-                	}
-                ;
+
                 
 ElseClause      :   ELSE Stmt // higher priority
                     {
