@@ -247,8 +247,33 @@ Stmt            :   VariableDef
                 	{
                 		$$.stmt = new Tree.SCopyExpr($3.ident, $5.expr, $1.loc);
                 	}
+                |	ForeachStmt
+                	{
+                		$$.stmt = $1.stmt;
+                	}
                 ;
-				
+ForeachStmt		:	FOREACH '(' BoundVariable IN Expr ForeachSubStmt ')' Stmt
+					{
+						$$.stmt = new Tree.ForeachArray($3.type, $3.ident, $5.expr, $6.expr, $8.stmt, $1.loc);
+					}
+				;
+ForeachSubStmt	:	WHILE Expr
+					{
+						$$.expr = $2.expr;
+					}	
+				|	/* empty */	
+				;		
+BoundVariable	:	VAR IDENTIFIER
+					{
+						$$.type = null;
+						$$.ident = $2.ident;
+					}
+				|	Type IDENTIFIER
+					{
+						$$.type = $1.type;
+						$$.ident = $2.ident;
+					}
+				;				
 SimpleStmt      :   Expr Assignment
                     {
                         if ($2.expr == null) {

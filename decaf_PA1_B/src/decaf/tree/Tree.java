@@ -1614,7 +1614,6 @@ public abstract class Tree {
     		pw.decIndent();
     	}
     }
-    
     public static class VarBind extends Tree{
     	
     	public String name;
@@ -1627,11 +1626,10 @@ public abstract class Tree {
     	}
     	
     	@Override
-        public void accept(Visitor v) {
-            v.visitVarBind(this);
-        }
-
-    	@Override
+         public void accept(Visitor v) {
+             v.visitVarBind(this);
+         }
+     	@Override
     	public void printTo(IndentPrintWriter pw) {
     		pw.println("assign");
     		pw.incIndent();
@@ -1640,16 +1638,19 @@ public abstract class Tree {
     		pw.decIndent();
     	}
     }
+
     public static class ForeachArray extends Expr {
 
     	public Expr expr1;
     	public Expr expr2;
-	    public VarBind varbind;
+	    public TypeLiteral type;
+	    public String name;
 	    public Tree stmt;
 
-        public ForeachArray(VarBind varbind, Expr expr1, Expr expr2, Tree stmt, Location loc) {
+        public ForeachArray(TypeLiteral type, String name, Expr expr1, Expr expr2, Tree stmt, Location loc) {
             super(FOREACHARRAY, loc);
-    		this.varbind = varbind;
+    		this.type = type;
+    		this.name = name;
     		this.expr1 = expr1;
     		this.expr2 = expr2;
 			this.stmt = stmt;
@@ -1664,7 +1665,14 @@ public abstract class Tree {
     	public void printTo(IndentPrintWriter pw) {
     		pw.println("foreach");
     		pw.incIndent();
-    		varbind.printTo(pw);
+    		pw.print("varbind " + name + " ");
+    		if(type != null) {
+    			type.printTo(pw);
+    			pw.println();
+    		}
+    		else {
+    			pw.println("var");
+    		}
     		expr1.printTo(pw);
     		if(expr2 != null) {
     			expr2.printTo(pw);
