@@ -12,6 +12,7 @@ import decaf.tree.Tree.LValue;
 import decaf.tree.Tree.MethodDef;
 import decaf.tree.Tree.TopLevel;
 import decaf.tree.Tree.TypeLiteral;
+import decaf.tree.Tree.VarBind;
 import decaf.tree.Tree.VarDef;
 import decaf.utils.MiscUtils;
 
@@ -70,6 +71,9 @@ public class SemValue {
     public LValue lvalue;
 
     public Vector<SemValue> vec;
+    
+    public VarBind varBind;
+    
 
     /**
      * 创建一个关键字的语义值
@@ -235,3 +239,26 @@ public class SemValue {
         return (String.format("%-15s%s", loc, msg));
     }
 }
+
+
+
+//Expr10           :   Oper8 Expr10
+//{
+//    $$.expr = new Tree.Unary($1.counter, $2.expr, $1.loc);
+//}
+//|   Expr9
+//{
+//    $$.expr = $1.expr;
+//}
+//;
+
+
+//ForeachStmt		:	FOREACH '(' BoundVariable IN Expr WHILE Expr ')' Stmt
+//{
+//	$$.stmt = new Tree.ForeachArray($3.varBind, $5.expr, $7.expr, $9.stmt, $1.loc);
+//}
+//|	FOREACH '(' BoundVariable IN Expr ')' Stmt
+//{
+//	$$.stmt = new Tree.ForeachArray($3.varBind, $5.expr, null, $7.stmt, $1.loc);
+//}
+//;

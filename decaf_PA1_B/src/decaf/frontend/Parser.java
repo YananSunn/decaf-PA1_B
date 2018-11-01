@@ -14,6 +14,7 @@ public class Parser extends Table {
      * Lexer.
      */
     private Lexer lexer;
+    int a = 2;
 
     /**
      * Set lexer.
@@ -80,21 +81,75 @@ public class Parser extends Table {
      * @param symbol the non-terminal to be passed.
      * @return the parsed value of `symbol` if parsing succeeded, otherwise `null`.
      */
-    private SemValue parse(int symbol, Set<Integer> follow) {
-        Map.Entry<Integer, List<Integer>> result = query(symbol, lookahead); // get production by lookahead symbol
-        int actionId = result.getKey(); // get user-defined action
+//    private SemValue parse(int symbol, Set<Integer> follow) {
+//        Map.Entry<Integer, List<Integer>> result = query(symbol, lookahead); // get production by lookahead symbol
+//        int actionId = result.getKey(); // get user-defined action
+//
+//        List<Integer> right = result.getValue(); // right-hand side of production
+//        int length = right.size();
+//        SemValue[] params = new SemValue[length + 1];
+//
+//        for (int i = 0; i < length; i++) { // parse right-hand side symbols one by one
+//            int term = right.get(i);
+//            params[i + 1] = isNonTerminal(term)
+//                    ? parse(term, follow) // for non terminals: recursively parse it
+//                    : matchToken(term) // for terminals: match token
+//                    ;
+//        }
+    
 
-        List<Integer> right = result.getValue(); // right-hand side of production
-        int length = right.size();
-        SemValue[] params = new SemValue[length + 1];
-
-        for (int i = 0; i < length; i++) { // parse right-hand side symbols one by one
-            int term = right.get(i);
-            params[i + 1] = isNonTerminal(term)
-                    ? parse(term, follow) // for non terminals: recursively parse it
-                    : matchToken(term) // for terminals: match token
-                    ;
+    	
+    	private SemValue parse(int symbol, Set<Integer> follow)
+        {
+            Set<Integer> begin = beginSet(symbol);
+            Set<Integer> end = followSet(symbol);
+            end.addAll(follow);
+             if (begin.contains(lookahead))
+            {
+                return work(symbol, end);
+            }
+            else
+            {
+                error();
+                while (lookahead != 0 && !begin.contains(lookahead) && !end.contains(lookahead))
+                {
+                    lookahead = lex();
+                }
+                if (begin.contains(lookahead))
+                {
+                    return work(symbol, end);
+                }
+                else
+                {
+                    return null;
+                }
+            }
         }
+         private SemValue work(int symbol, Set<Integer> follow)
+        {
+
+            
+          Map.Entry<Integer, List<Integer>> result = query(symbol, lookahead); // get production by lookahead symbol
+          int actionId = result.getKey(); // get user-defined action
+  
+          List<Integer> right = result.getValue(); // right-hand side of production
+          int length = right.size();
+          SemValue[] params = new SemValue[length + 1];
+            
+            
+             for (int i = 0; i < length; i++) { // parse right-hand side symbols one by one
+                int term = right.get(i);
+                params[i + 1] = isNonTerminal(term)
+                        ? parse(term, follow) // for non terminals: recursively parse it
+                        : matchToken(term) // for terminals: match token
+                        ;
+                ;
+            }
+             for (int i = 1; i < length + 1; i++)
+                if (params[i] == null)
+                {
+                    return null;
+                }
 
         params[0] = new SemValue(); // initialize return value
         act(actionId, params); // do user-defined action

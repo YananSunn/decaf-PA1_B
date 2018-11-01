@@ -17,7 +17,10 @@ PRINT  READ_INTEGER         READ_LINE
 LITERAL
 IDENTIFIER   AND      OR    STATIC  INSTANCEOF
 LESS_EQUAL   GREATER_EQUAL  EQUAL   NOT_EQUAL
-'+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'
+
+SCOPY SEALED GUARDED NEWSAMEARRAY JOINTARRAY DEFAULT IN FOREACH VAR
+
+'+'  '-'  '*'  '/'  '%'  '='  '>'  '<'  '.'  ':'
 ','  ';'  '!'  '('  ')'  '['  ']'  '{'  '}'
 
 %%
@@ -101,8 +104,13 @@ ClassDef        :   CLASS IDENTIFIER ExtendsClause '{' FieldList '}'
                     {
                         $$.cdef = new Tree.ClassDef($2.ident, $3.ident, $5.flist, $1.loc);
                     }
+                    
+                |	SEALED CLASS IDENTIFIER ExtendsClause '{' FieldList '}'
+					{
+						$$.cdef = new Tree.Sealed($3.ident, $4.ident, $6.flist, $1.loc);
+					}
                 ;
-
+				
 ExtendsClause   :   EXTENDS IDENTIFIER
                     {
                         $$.ident = $2.ident;
@@ -235,8 +243,12 @@ Stmt            :   VariableDef
                     {
                         $$.stmt = $1.stmt;
                     }
+                |	SCOPY '(' IDENTIFIER ',' Expr ')'
+                	{
+                		$$.stmt = new Tree.SCopyExpr($3.ident, $5.expr, $1.loc);
+                	}
                 ;
-
+				
 SimpleStmt      :   Expr Assignment
                     {
                         if ($2.expr == null) {
@@ -245,6 +257,10 @@ SimpleStmt      :   Expr Assignment
                             $$.stmt = new Tree.Assign($1.expr, $2.expr, $2.loc);
                         }
                     }
+                |	VAR IDENTIFIER '=' Expr
+                	{
+						$$.stmt = new Tree.VarBind($2.ident, $4.expr, $1.loc);
+					}
                 |   /* empty */
                 ;
 
@@ -345,6 +361,18 @@ Oper7           :   '-'
                         $$.loc = $1.loc;
                     }
                 ;
+Oper8           :	NEWSAMEARRAY
+                	{
+                		$$.counter = Tree.NEWSAMEARRAY;
+                        $$.loc = $1.loc;
+                	}
+				;
+Oper9           :	JOINTARRAY
+                	{
+                		$$.counter = Tree.JOINTARRAY;
+                        $$.loc = $1.loc;
+                	}
+				;
 
 // expressions
 Expr            :   Expr1
@@ -411,7 +439,7 @@ ExprT2          :   Oper2 Expr3 ExprT2
                 |   /* empty */
                 ;
 
-Expr3           :   Expr4 ExprT3
+Expr3           :   Expr40 ExprT3
                     {
                         $$.expr = $1.expr;
                         if ($2.svec != null) {
@@ -423,7 +451,7 @@ Expr3           :   Expr4 ExprT3
                     }
                 ;
 
-ExprT3          :   Oper3 Expr4 ExprT3
+ExprT3          :   Oper3 Expr40 ExprT3
                     {
                         $$.svec = new Vector<Integer>();
                         $$.lvec = new Vector<Location>();
@@ -439,7 +467,65 @@ ExprT3          :   Oper3 Expr4 ExprT3
                     }
                 |   /* empty */
                 ;
+Expr40           :   Expr41 ExprT40
+                    {
+                        $$.expr = $1.expr;
+                        if ($2.svec != null) {
+                        	Expr tmp = $2.evec.get(0);
+                            for (int i = $2.svec.size()-1; i > 0 ; --i) {
+                                tmp = new Tree.JointArray($2.evec.get(i-1),
+                                    $2.evec.get(i), $2.lvec.get(i));
+                            }
+                            $$.expr = new Tree.JointArray($1.expr,
+                                    tmp, $2.lvec.get(0));
+                        }
+                    }
+                ;
 
+ExprT40          :   Oper9 Expr41 ExprT40
+                    {
+                        $$.svec = new Vector<Integer>();
+                        $$.lvec = new Vector<Location>();
+                        $$.evec = new Vector<Expr>();
+                        $$.svec.add($1.counter);
+                        $$.lvec.add($1.loc);
+                        $$.evec.add($2.expr);
+                        if ($3.svec != null) {
+                            $$.svec.addAll($3.svec);
+                            $$.lvec.addAll($3.lvec);
+                            $$.evec.addAll($3.evec);
+                        }
+                    }
+                |   /* empty */
+                ;                
+Expr41           :   Expr4 ExprT41
+                    {
+                        $$.expr = $1.expr;
+                        if ($2.svec != null) {
+                            for (int i = 0; i < $2.svec.size(); ++i) {
+                                $$.expr = new Tree.NewSameArray($$.expr,
+                                    $2.evec.get(i), $2.lvec.get(i));
+                            }
+                        }
+                    }
+                ;
+
+ExprT41          :   Oper8 Expr4 ExprT41
+                    {
+                        $$.svec = new Vector<Integer>();
+                        $$.lvec = new Vector<Location>();
+                        $$.evec = new Vector<Expr>();
+                        $$.svec.add($1.counter);
+                        $$.lvec.add($1.loc);
+                        $$.evec.add($2.expr);
+                        if ($3.svec != null) {
+                            $$.svec.addAll($3.svec);
+                            $$.lvec.addAll($3.lvec);
+                            $$.evec.addAll($3.evec);
+                        }
+                    }
+                |   /* empty */
+                ;
 Expr4           :   Expr5 ExprT4
                     {
                         $$.expr = $1.expr;
@@ -629,8 +715,7 @@ Expr9           :   Constant
                             $$.expr = new Tree.Ident(null, $1.ident, $1.loc);
                         }
                     }
-                ;
-
+                ;  
 AfterNewExpr    :   IDENTIFIER '(' ')'
                     {
                         $$.ident = $1.ident;
@@ -677,8 +762,41 @@ Constant        :   LITERAL
                     {
                         $$.expr = new Null($1.loc);
                     }
+                |	ArrayConstant
+                	{
+                		$$.expr = $1.expr;
+                	}
                 ;
+ArrayConstant	:	'[' ConstantList ']'
+					{
+						$$.expr = new Tree.ArrayConstant($2.elist, $1.loc);
+					}
+				;
 
+ConstantList    :   Constant ConstantSubList
+                    {
+                    	$$.elist = new ArrayList<Tree.Expr>();
+                        $$.elist.add($1.expr);
+                        if ($2.elist != null) {
+                            $$.elist.addAll($2.elist);
+                        }
+                    }
+                |   /* empty */
+                    {
+                        $$.elist = new ArrayList<Tree.Expr>();
+                    }
+                ;
+ConstantSubList	:	',' Constant ConstantSubList
+					{
+						$$.elist = new ArrayList<Expr>();
+                        $$.elist.add($2.expr);
+                        if ($3.elist != null) {
+                            $$.elist.addAll($3.elist);
+                        }
+					}
+				|	/* empty */
+				;
+				
 Actuals         :   ExprList
                     {
                         $$.elist = $1.elist;
@@ -709,6 +827,11 @@ SubExprList     :   ',' Expr SubExprList
                     }
                 ;
 
+				
+
+
+
+
 // statements
 WhileStmt       :   WHILE '(' Expr ')' Stmt
                     {
@@ -728,12 +851,21 @@ BreakStmt       :   BREAK
                     }
                 ;
 
-IfStmt          :   IF '(' Expr ')' Stmt ElseClause
+IfStmt          :   IF GuardedStmt
                     {
-                        $$.stmt = new Tree.If($3.expr, $5.stmt, $6.stmt, $1.loc);
+                       $$.stmt = $2.stmt;
                     }
                 ;
-
+GuardedStmt     :   '{' IfList '}'
+                    {
+                        $$.stmt = new Tree.Guarded($2.slist, $1.loc);
+                    }
+                |	'(' Expr ')' Stmt ElseClause
+                	{
+                		 $$.stmt = new Tree.If($2.expr, $4.stmt, $5.stmt, $1.loc);
+                	}
+                ;
+                
 ElseClause      :   ELSE Stmt // higher priority
                     {
                         $$.stmt = $2.stmt;
@@ -757,5 +889,35 @@ ReturnExpr      :   Expr
 PrintStmt       :   PRINT '(' ExprList ')'
                     {
                         $$.stmt = new Tree.Print($3.elist, $1.loc);
+                    }
+                ;
+
+IfList    		:   IfSubStmt IfBranchList
+                    {
+                        $$.slist = new ArrayList<Tree>();
+                        $$.slist.add($1.stmt);
+                        if ($2.slist != null) {
+                            $$.slist.addAll($2.slist);
+                        }
+                    }
+                |   /* empty */
+                	{
+                		$$.slist = new ArrayList<Tree>();
+                	}
+                ;
+
+IfBranchList	:   GUARDED IfSubStmt IfBranchList
+                    {
+                        $$.slist = new ArrayList<Tree>();
+                        $$.slist.add($2.stmt);
+                        if ($3.slist != null) {
+                            $$.slist.addAll($3.slist);
+                        }
+                    }
+                |   /* empty */
+                ;              
+IfSubStmt       :   Expr ':' Stmt
+                    {
+                        $$.stmt = new Tree.IfSubStmt($1.expr, $3.stmt, $1.loc);
                     }
                 ;

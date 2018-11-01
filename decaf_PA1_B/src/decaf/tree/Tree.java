@@ -1000,6 +1000,9 @@ public abstract class Tree {
                 case GE:
                     binaryOperatorPrintTo(pw, "geq");
                     break;
+                case GUARDED:
+                    binaryOperatorPrintTo(pw, "|||");
+                    break;
             }
         }
     }
@@ -1355,7 +1358,7 @@ public abstract class Tree {
         }
     }
 
-    
+
     public static class Sealed extends ClassDef {
 
         public Sealed(String name, String parent, List<Tree> fields,
@@ -1378,12 +1381,10 @@ public abstract class Tree {
     public static class Guarded extends Tree
     {
          public List<Tree> subStmt;
-        public Tree last;
-         public Guarded(List<Tree> subStmt, Tree last, Location loc)
+         public Guarded(List<Tree> subStmt, Location loc)
         {
             super(GUARDED, loc);
             this.subStmt = subStmt;
-            this.last = last;
         }
          @Override
         public void accept(Visitor v)
@@ -1395,10 +1396,9 @@ public abstract class Tree {
         {
             pw.println("guarded");
             pw.incIndent();
-            if(subStmt != null) {
+            if(subStmt.size()!= 0) {
             	for (Tree stmt : subStmt)
                     stmt.printTo(pw);
-                last.printTo(pw);
             }
             else {
             	pw.println("<empty>");
@@ -1411,7 +1411,7 @@ public abstract class Tree {
      */
     public static class IfSubStmt extends Tree
     {
-         public Expr expr;
+        public Expr expr;
         public Tree stmt;
          public IfSubStmt(Expr expr, Tree stmt, Location loc)
         {
@@ -1617,13 +1617,13 @@ public abstract class Tree {
     
     public static class VarBind extends Tree{
     	
-    	public TypeLiteral type;
     	public String name;
+    	public Expr expr;
     	
-    	public VarBind(TypeLiteral type, String name, Location loc) {
+    	public VarBind(String name, Expr expr, Location loc) {
     		super(VARBIND, loc);
-    		this.type = type;
     		this.name = name;
+    		this.expr = expr;
     	}
     	
     	@Override
@@ -1633,14 +1633,11 @@ public abstract class Tree {
 
     	@Override
     	public void printTo(IndentPrintWriter pw) {
-    		pw.print("varbind " + name + " ");
-    		if(type != null) {
-    			type.printTo(pw);
-    			pw.println();
-    		}
-    		else {
-    			pw.println("var");
-    		}
+    		pw.println("assign");
+    		pw.incIndent();
+    		pw.println("var " + name);
+    		expr.printTo(pw);
+    		pw.decIndent();
     	}
     }
     public static class ForeachArray extends Expr {
@@ -1680,12 +1677,15 @@ public abstract class Tree {
     	}
     }
     
-    public static class Var extends LValue {
+    public static class Var extends Tree {
     	public String name;
+    	public Expr expr;
+    	
 
-        public Var(String name, Location loc) {
+        public Var(String name, Location loc, Expr expr) {
             super(VARSTMT, loc);
     		this.name = name;
+    		this.expr = expr;
         }
 
     	@Override
@@ -1716,7 +1716,7 @@ public abstract class Tree {
 	    public void printTo(IndentPrintWriter pw){
 	        pw.println("array const");
 	        pw.incIndent();
-	        if(constantStmt != null){
+	        if(constantStmt.size()!=0){
 	        	for (Expr stmt : constantStmt)        	
 	        		stmt.printTo(pw);	    	        
 	        }
@@ -1726,8 +1726,6 @@ public abstract class Tree {
 	        pw.decIndent();
 	    }
     }
-    
-    
     
     
     /**
@@ -1922,6 +1920,7 @@ public abstract class Tree {
         public void visitVarBind(VarBind that){
             visitTree(that);
         }
+        
         
 
         public void visitTree(Tree that) {
